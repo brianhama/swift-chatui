@@ -36,20 +36,21 @@ public struct MessageBubbleView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(
-                MessageBubbleShape(
-                    direction: context.direction,
-                    groupPosition: context.groupPosition,
-                    cornerRadius: theme.metrics.bubbleCornerRadius,
-                    groupedInnerCornerRadius: theme.metrics.groupedInnerCornerRadius
+                    MessageBubbleShape(
+                        direction: context.direction,
+                        groupPosition: context.groupPosition,
+                        cornerRadius: theme.metrics.bubbleCornerRadius,
+                        groupedInnerCornerRadius: theme.metrics.groupedInnerCornerRadius
+                    )
+                    .fill(bubbleFill)
                 )
-                .fill(bubbleFill)
-            )
                 .overlay(alignment: overlayAlignment) {
                     if let overlay = overlayContent {
                         overlay.offset(y: 15)
                     }
                 }
         }
+        .frame(maxWidth: maxWidth, alignment: bubbleAlignment)
             .accessibilityElement(children: .combine)
     }
 

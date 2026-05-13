@@ -76,6 +76,7 @@ public struct MessageRowView: View {
                     Spacer(minLength: 0)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: context.direction == .outgoing ? .trailing : .leading)
         }
         .contextMenu { contextMenuContent }
         .accessibilityElement(children: .contain)

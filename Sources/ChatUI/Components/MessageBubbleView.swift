@@ -33,8 +33,7 @@ public struct MessageBubbleView: View {
                 .foregroundStyle(textColor)
                 .multilineTextAlignment(textAlignment)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+                .padding(bubbleContentInsets)
                 .background(
                     MessageBubbleShape(
                         direction: context.direction,
@@ -51,7 +50,7 @@ public struct MessageBubbleView: View {
                 }
         }
         .frame(maxWidth: maxWidth, alignment: bubbleAlignment)
-            .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .combine)
     }
 
     private var bubbleContent: some View {
@@ -98,6 +97,29 @@ public struct MessageBubbleView: View {
 
     private var showsTail: Bool {
         context.groupPosition == .single || context.groupPosition == .last
+    }
+
+    private var bubbleContentInsets: EdgeInsets {
+        let horizontalPadding: CGFloat = 14
+        let verticalPadding: CGFloat = 10
+        let tailPadding = showsTail ? MessageBubbleShape.tailInset : 0
+
+        switch context.direction {
+        case .incoming:
+            return EdgeInsets(
+                top: verticalPadding,
+                leading: horizontalPadding + tailPadding,
+                bottom: verticalPadding,
+                trailing: horizontalPadding
+            )
+        case .outgoing:
+            return EdgeInsets(
+                top: verticalPadding,
+                leading: horizontalPadding,
+                bottom: verticalPadding,
+                trailing: horizontalPadding + tailPadding
+            )
+        }
     }
 }
 

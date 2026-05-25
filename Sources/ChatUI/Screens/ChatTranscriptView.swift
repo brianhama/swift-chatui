@@ -146,7 +146,12 @@ public struct ChatTranscriptView: View {
     }
 
     private var displayItems: [TranscriptDisplayItem] {
-        engine.makeItems(conversation: conversation, messages: messages, configuration: configuration)
+        engine.makeItems(
+            conversation: conversation,
+            messages: messages,
+            configuration: configuration,
+            metrics: theme.metrics
+        )
     }
 
     @ViewBuilder

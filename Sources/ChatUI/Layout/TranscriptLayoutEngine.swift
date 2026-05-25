@@ -62,7 +62,8 @@ struct TranscriptLayoutEngine {
     func makeItems(
         conversation: ChatConversation,
         messages: [ChatMessage],
-        configuration: ChatThreadConfiguration
+        configuration: ChatThreadConfiguration,
+        metrics: ChatMetrics = .messages
     ) -> [TranscriptDisplayItem] {
         let orderedMessages = stableSort(messages)
         guard orderedMessages.isEmpty == false else {
@@ -128,7 +129,7 @@ struct TranscriptLayoutEngine {
                 in: orderedMessages,
                 currentUserID: conversation.currentUserID
             )
-            let topSpacing = previousInRun ? ChatMetrics.messages.messageRunSpacing : ChatMetrics.messages.messageGroupSpacing
+            let topSpacing = previousInRun ? metrics.messageRunSpacing : metrics.messageGroupSpacing
 
             items.append(
                 .message(

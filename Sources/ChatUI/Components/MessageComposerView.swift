@@ -43,7 +43,7 @@ public struct MessageComposerView: View {
 
             HStack(alignment: .bottom, spacing: 8) {
                 ZStack(alignment: .topLeading) {
-                    if trimmedText.isEmpty {
+                    if text.isEmpty {
                         Text(configuration.placeholder)
                             .font(theme.typography.composer)
                             .foregroundStyle(theme.colors.metadata)
@@ -54,12 +54,14 @@ public struct MessageComposerView: View {
 
                     TextField("", text: $text, axis: .vertical)
                         .font(theme.typography.composer)
-                        .lineLimit(1...configuration.maxVisibleLines)
+                        .textFieldStyle(.plain)
+                        .lineLimit(visibleLineRange)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
-                        .frame(minHeight: theme.metrics.composerFieldMinHeight, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: theme.metrics.composerFieldMinHeight, alignment: .leading)
                         .focused($isFocused)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(theme.colors.composerFieldBackground)
@@ -80,11 +82,17 @@ public struct MessageComposerView: View {
                 .disabled(trimmedText.isEmpty)
                 .accessibilityLabel(Text("Send"))
             }
+            .frame(maxWidth: .infinity, alignment: .bottom)
         }
+        .frame(maxWidth: .infinity, alignment: .bottom)
         .padding(.horizontal, theme.metrics.transcriptHorizontalPadding)
         .padding(.top, 8)
         .padding(.bottom, 8)
         .background(theme.colors.composerBackground)
+    }
+
+    private var visibleLineRange: ClosedRange<Int> {
+        1...max(1, configuration.maxVisibleLines)
     }
 
     private var trimmedText: String {
@@ -117,4 +125,21 @@ public struct MessageComposerView: View {
     }
 
     return ComposerPreview()
+}
+
+#Preview("Multiline Composer") {
+    struct MultilineComposerPreview: View {
+        @State private var text = """
+        First line
+        Second line with enough copy to wrap naturally inside the composer field
+        Third line
+        """
+
+        var body: some View {
+            MessageComposerView(text: $text) { _ in }
+                .chatTheme(.messages)
+        }
+    }
+
+    return MultilineComposerPreview()
 }

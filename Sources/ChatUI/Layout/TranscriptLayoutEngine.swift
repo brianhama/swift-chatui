@@ -2,23 +2,35 @@ import CoreGraphics
 import Foundation
 
 struct TranscriptMessageItem: Identifiable, Hashable {
+    let id: TranscriptDisplayItemID
     let message: ChatMessage
     let context: MessageRowContext
     let topSpacing: CGFloat
-
-    var id: ChatMessage.ID { message.id }
 }
 
 struct TranscriptDateSeparatorItem: Identifiable, Hashable {
-    let id: String
+    let id: TranscriptDisplayItemID
     let date: Date
 }
 
+struct TranscriptDisplayItemID: Hashable {
+    enum Kind: Hashable {
+        case dateSeparator
+        case message
+    }
+
+    let kind: Kind
+    let sourceID: ChatMessage.ID
+    let occurrence: Int
+}
+
 enum TranscriptDisplayItem: Identifiable, Hashable {
+    typealias ID = TranscriptDisplayItemID
+
     case dateSeparator(TranscriptDateSeparatorItem)
     case message(TranscriptMessageItem)
 
-    var id: String {
+    var id: TranscriptDisplayItemID {
         switch self {
         case let .dateSeparator(separator):
             return separator.id
@@ -71,9 +83,17 @@ struct TranscriptLayoutEngine {
         }
 
         var items: [TranscriptDisplayItem] = []
+        var messageOccurrences: [ChatMessage.ID: Int] = [:]
 
         for index in orderedMessages.indices {
             let message = orderedMessages[index]
+            let messageOccurrence = messageOccurrences[message.id, default: 0]
+            messageOccurrences[message.id] = messageOccurrence + 1
+            let messageItemID = TranscriptDisplayItemID(
+                kind: .message,
+                sourceID: message.id,
+                occurrence: messageOccurrence
+            )
             let previousMessage = index == orderedMessages.startIndex ? nil : orderedMessages[orderedMessages.index(before: index)]
             let nextIndex = orderedMessages.index(after: index)
             let nextMessage = nextIndex == orderedMessages.endIndex ? nil : orderedMessages[nextIndex]
@@ -86,7 +106,11 @@ struct TranscriptLayoutEngine {
                 items.append(
                     .dateSeparator(
                         TranscriptDateSeparatorItem(
-                            id: "separator-\(message.id)",
+                            id: TranscriptDisplayItemID(
+                                kind: .dateSeparator,
+                                sourceID: message.id,
+                                occurrence: messageOccurrence
+                            ),
                             date: message.timestamp
                         )
                     )
@@ -134,6 +158,7 @@ struct TranscriptLayoutEngine {
             items.append(
                 .message(
                     TranscriptMessageItem(
+                        id: messageItemID,
                         message: message,
                         context: MessageRowContext(
                             direction: direction,

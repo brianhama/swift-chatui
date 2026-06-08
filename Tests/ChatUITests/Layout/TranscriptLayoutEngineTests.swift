@@ -104,4 +104,41 @@ final class TranscriptLayoutEngineTests: XCTestCase {
 
         XCTAssertEqual(topSpacings, [0, 1, 4])
     }
+
+    func testDisplayItemIDsStayUniqueWhenMessagesShareRawID() {
+        var engine = TranscriptLayoutEngine()
+        engine.calendar = FixtureFactory.calendar
+        let conversation = FixtureFactory.directConversation()
+        let messages = [
+            FixtureFactory.message(
+                id: "duplicate",
+                senderID: FixtureFactory.sam.id,
+                timestamp: FixtureFactory.date(2026, 4, 10, 10, 0),
+                text: "First",
+                conversationID: conversation.id
+            ),
+            FixtureFactory.message(
+                id: "duplicate",
+                senderID: FixtureFactory.me.id,
+                timestamp: FixtureFactory.date(2026, 4, 11, 10, 0),
+                text: "Second",
+                conversationID: conversation.id
+            )
+        ]
+
+        let items = engine.makeItems(
+            conversation: conversation,
+            messages: messages,
+            configuration: .messages
+        )
+
+        XCTAssertEqual(Set(items.map(\.id)).count, items.count)
+        XCTAssertEqual(
+            items.compactMap { item -> ChatMessage.ID? in
+                guard case let .message(messageItem) = item else { return nil }
+                return messageItem.message.id
+            },
+            ["duplicate", "duplicate"]
+        )
+    }
 }

@@ -109,8 +109,8 @@ public struct MessageComposerView: View {
             return
         }
 
-        onSendText(outgoingText)
         text = ""
+        onSendText(outgoingText)
     }
 }
 

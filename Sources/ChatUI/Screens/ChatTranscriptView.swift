@@ -25,14 +25,16 @@ public struct ChatTranscriptView: View {
     public var onLoadEarlierMessages: (() async -> Void)?
 
     @State private var hasPerformedInitialScroll = false
-    @State private var bottomDistance: CGFloat = 0
-    @State private var transcriptTopSpacerHeight: CGFloat = 0
+    @State private var isNearBottom = true
+    @State private var minContentHeight: CGFloat = 0
     @State private var isLoadingEarlier = false
     @State private var prependAnchorID: TranscriptDisplayItem.ID?
     @State private var previousMessageIDs: [String] = []
+    @State private var displayItemsCache = DisplayItemsCache()
 
     private let engine = TranscriptLayoutEngine()
     private let bottomAnchorID = "chat-bottom-anchor"
+    private let transcriptVerticalPadding: CGFloat = 8
 
     /// Creates a chat transcript view.
     public init(
@@ -55,9 +57,6 @@ public struct ChatTranscriptView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    Color.clear
-                        .frame(height: transcriptTopSpacerHeight)
-
                     Color.clear
                         .frame(height: 1)
                         .id("load-older-anchor")
@@ -95,9 +94,9 @@ public struct ChatTranscriptView: View {
                         .frame(height: 1)
                         .id(bottomAnchorID)
                 }
-                .frame(maxWidth: .infinity, alignment: .bottom)
+                .frame(maxWidth: .infinity, minHeight: minContentHeight, alignment: .bottom)
                 .padding(.horizontal, theme.metrics.transcriptHorizontalPadding)
-                .padding(.vertical, 8)
+                .padding(.vertical, transcriptVerticalPadding)
                 .background(
                     ScrollViewMetricsProbe { metrics in
                         updateScrollMetrics(metrics)
@@ -108,7 +107,7 @@ public struct ChatTranscriptView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(theme.colors.transcriptBackground)
             .overlay(alignment: .bottomTrailing) {
-                if configuration.showsJumpToLatest, bottomDistance > configuration.jumpToLatestThreshold {
+                if configuration.showsJumpToLatest, !isNearBottom {
                     Button {
                         withAnimation(theme.animations.standard) {
                             proxy.scrollTo(bottomAnchorID, anchor: .bottom)
@@ -139,25 +138,51 @@ public struct ChatTranscriptView: View {
     }
 
     private func updateScrollMetrics(_ metrics: ScrollViewMetrics) {
-        bottomDistance = metrics.bottomDistance
+        // `metrics.bottomDistance` changes on every frame of scrolling. Collapse it
+        // into a single Bool and only write state when it actually flips, so the
+        // (heavy) transcript body — which re-runs the layout engine over every
+        // message — isn't re-evaluated on every scroll frame or during the
+        // animated scroll-to-bottom. That per-frame re-evaluation is what pegged
+        // the main thread in AttributeGraph (AGGraphGetValue).
+        let nearBottom = metrics.bottomDistance <= configuration.jumpToLatestThreshold
+        if nearBottom != isNearBottom {
+            isNearBottom = nearBottom
+        }
 
-        let contentHeightWithoutSpacer = max(0, metrics.contentHeight - transcriptTopSpacerHeight)
-        let nextTopSpacerHeight = max(0, metrics.viewportHeight - contentHeightWithoutSpacer)
-
-        guard abs(transcriptTopSpacerHeight - nextTopSpacerHeight) > 0.5 else {
+        // Pin short transcripts to the bottom by giving the content a minimum
+        // height equal to the viewport (less its own vertical padding). This is
+        // derived from the scroll view's *viewport*, which does not depend on the
+        // content height — so, unlike a spacer that lives inside the scroll
+        // content, it can't feed back into the content size and thrash during
+        // keyboard or scroll animations.
+        let nextMinContentHeight = max(0, metrics.viewportHeight - transcriptVerticalPadding * 2)
+        guard abs(minContentHeight - nextMinContentHeight) > 0.5 else {
             return
         }
 
-        transcriptTopSpacerHeight = nextTopSpacerHeight
+        minContentHeight = nextMinContentHeight
     }
 
     private var displayItems: [TranscriptDisplayItem] {
-        engine.makeItems(
-            conversation: conversation,
-            messages: messages,
-            configuration: configuration,
-            metrics: theme.metrics
-        )
+        displayItemsCache.items(
+            for: DisplayItemsCache.Key(
+                messages: messages,
+                currentUserID: conversation.currentUserID,
+                kind: conversation.kind,
+                dateSeparatorStrategy: configuration.dateSeparatorStrategy,
+                groupingThreshold: configuration.groupingThreshold,
+                showsDirectChatAvatars: configuration.showsDirectChatAvatars,
+                messageRunSpacing: theme.metrics.messageRunSpacing,
+                messageGroupSpacing: theme.metrics.messageGroupSpacing
+            )
+        ) {
+            engine.makeItems(
+                conversation: conversation,
+                messages: messages,
+                configuration: configuration,
+                metrics: theme.metrics
+            )
+        }
     }
 
     private var firstMessageDisplayID: TranscriptDisplayItem.ID? {
@@ -204,7 +229,7 @@ public struct ChatTranscriptView: View {
             return
         }
 
-        if latestMessage.senderID == conversation.currentUserID || bottomDistance <= configuration.jumpToLatestThreshold {
+        if latestMessage.senderID == conversation.currentUserID || isNearBottom {
             DispatchQueue.main.async {
                 withAnimation(theme.animations.standard) {
                     proxy.scrollTo(bottomAnchorID, anchor: .bottom)
@@ -222,6 +247,39 @@ public struct ChatTranscriptView: View {
         prependAnchorID = firstMessageDisplayID
         await onLoadEarlierMessages()
         isLoadingEarlier = false
+    }
+}
+
+/// Memoizes ``TranscriptLayoutEngine/makeItems`` output so the layout pass only
+/// runs when an input that affects it changes — not on every SwiftUI body pass
+/// (e.g. when only the jump-to-latest state or the keyboard-driven minimum height
+/// moves). Held in `@State` so it survives the view struct being recreated; it is
+/// a plain, unobserved class, so reading and updating it during `body` does not
+/// trigger any SwiftUI invalidation.
+private final class DisplayItemsCache {
+    struct Key: Equatable {
+        let messages: [ChatMessage]
+        let currentUserID: ChatParticipant.ID
+        let kind: ConversationKind
+        let dateSeparatorStrategy: DateSeparatorStrategy
+        let groupingThreshold: TimeInterval
+        let showsDirectChatAvatars: Bool
+        let messageRunSpacing: CGFloat
+        let messageGroupSpacing: CGFloat
+    }
+
+    private var key: Key?
+    private var items: [TranscriptDisplayItem] = []
+
+    func items(for key: Key, compute: () -> [TranscriptDisplayItem]) -> [TranscriptDisplayItem] {
+        if self.key == key {
+            return items
+        }
+
+        let computed = compute()
+        self.key = key
+        self.items = computed
+        return computed
     }
 }
 

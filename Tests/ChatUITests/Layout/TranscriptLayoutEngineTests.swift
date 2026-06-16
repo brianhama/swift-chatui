@@ -105,24 +105,26 @@ final class TranscriptLayoutEngineTests: XCTestCase {
         XCTAssertEqual(topSpacings, [0, 1, 4])
     }
 
-    func testDisplayItemIDsStayUniqueWhenMessagesShareRawID() {
+    func testDeduplicatesMessagesByRawIDKeepingLatestOccurrence() {
         var engine = TranscriptLayoutEngine()
         engine.calendar = FixtureFactory.calendar
         let conversation = FixtureFactory.directConversation()
         let messages = [
             FixtureFactory.message(
                 id: "duplicate",
-                senderID: FixtureFactory.sam.id,
+                senderID: FixtureFactory.me.id,
                 timestamp: FixtureFactory.date(2026, 4, 10, 10, 0),
-                text: "First",
-                conversationID: conversation.id
+                text: "Optimistic",
+                conversationID: conversation.id,
+                status: .sending
             ),
             FixtureFactory.message(
                 id: "duplicate",
                 senderID: FixtureFactory.me.id,
                 timestamp: FixtureFactory.date(2026, 4, 11, 10, 0),
-                text: "Second",
-                conversationID: conversation.id
+                text: "Server echo",
+                conversationID: conversation.id,
+                status: .sent
             )
         ]
 
@@ -132,13 +134,14 @@ final class TranscriptLayoutEngineTests: XCTestCase {
             configuration: .messages
         )
 
-        XCTAssertEqual(Set(items.map(\.id)).count, items.count)
-        XCTAssertEqual(
-            items.compactMap { item -> ChatMessage.ID? in
-                guard case let .message(messageItem) = item else { return nil }
-                return messageItem.message.id
-            },
-            ["duplicate", "duplicate"]
-        )
+        let renderedMessages = items.compactMap { item -> ChatMessage? in
+            guard case let .message(messageItem) = item else { return nil }
+            return messageItem.message
+        }
+
+        XCTAssertEqual(renderedMessages.count, 1)
+        XCTAssertEqual(renderedMessages.first?.id, "duplicate")
+        XCTAssertEqual(renderedMessages.first?.content, .text("Server echo"))
+        XCTAssertEqual(renderedMessages.first?.status, .sent)
     }
 }

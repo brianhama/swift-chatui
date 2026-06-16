@@ -77,7 +77,7 @@ struct TranscriptLayoutEngine {
         configuration: ChatThreadConfiguration,
         metrics: ChatMetrics = .messages
     ) -> [TranscriptDisplayItem] {
-        let orderedMessages = stableSort(messages)
+        let orderedMessages = stableSort(deduplicatedMessages(messages))
         guard orderedMessages.isEmpty == false else {
             return []
         }
@@ -175,6 +175,17 @@ struct TranscriptLayoutEngine {
         }
 
         return items
+    }
+
+    func deduplicatedMessages(_ messages: [ChatMessage]) -> [ChatMessage] {
+        var lastIndexByMessageID: [ChatMessage.ID: Int] = [:]
+        for (index, message) in messages.enumerated() {
+            lastIndexByMessageID[message.id] = index
+        }
+
+        return messages.enumerated().compactMap { index, message in
+            lastIndexByMessageID[message.id] == index ? message : nil
+        }
     }
 
     func stableSort(_ messages: [ChatMessage]) -> [ChatMessage] {

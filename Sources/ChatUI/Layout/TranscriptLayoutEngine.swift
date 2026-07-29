@@ -117,7 +117,15 @@ struct TranscriptLayoutEngine {
                 )
             }
 
-            let direction = direction(for: message, currentUserID: conversation.currentUserID)
+            let messageDirection = direction(for: message, currentUserID: conversation.currentUserID)
+            let currentIsSystemMessage = isSystemMessage(message, in: conversation, direction: messageDirection)
+            let previousIsSystemMessage = previousMessage.map { previous in
+                isSystemMessage(
+                    previous,
+                    in: conversation,
+                    direction: direction(for: previous, currentUserID: conversation.currentUserID)
+                )
+            } ?? false
             let previousInRun = previousMessage.map {
                 areInSameRun(
                     lhs: $0,
@@ -153,7 +161,13 @@ struct TranscriptLayoutEngine {
                 in: orderedMessages,
                 currentUserID: conversation.currentUserID
             )
-            let topSpacing = previousInRun ? metrics.messageRunSpacing : metrics.messageGroupSpacing
+            let topSpacing = messageTopSpacing(
+                previousMessage: previousMessage,
+                previousInRun: previousInRun,
+                isSystemMessage: currentIsSystemMessage,
+                previousIsSystemMessage: previousIsSystemMessage,
+                metrics: metrics
+            )
 
             items.append(
                 .message(
@@ -161,14 +175,14 @@ struct TranscriptLayoutEngine {
                         id: messageItemID,
                         message: message,
                         context: MessageRowContext(
-                            direction: direction,
+                            direction: messageDirection,
                             groupPosition: groupPosition,
                             showsAvatar: showsAvatar,
                             showsSenderName: showsSenderName,
                             showsStatus: showsStatus,
                             isGroupConversation: conversation.kind == .group
                         ),
-                        topSpacing: previousMessage == nil ? 0 : topSpacing
+                        topSpacing: topSpacing
                     )
                 )
             )
@@ -238,6 +252,33 @@ struct TranscriptLayoutEngine {
 
     func direction(for message: ChatMessage, currentUserID: ChatParticipant.ID) -> MessageDirection {
         message.senderID == currentUserID ? .outgoing : .incoming
+    }
+
+    func isSystemMessage(
+        _ message: ChatMessage,
+        in conversation: ChatConversation,
+        direction: MessageDirection
+    ) -> Bool {
+        direction == .incoming &&
+            conversation.participants.contains(where: { $0.id == message.senderID }) == false
+    }
+
+    func messageTopSpacing(
+        previousMessage: ChatMessage?,
+        previousInRun: Bool,
+        isSystemMessage: Bool,
+        previousIsSystemMessage: Bool,
+        metrics: ChatMetrics
+    ) -> CGFloat {
+        guard previousMessage != nil else {
+            return 0
+        }
+
+        if isSystemMessage && previousIsSystemMessage {
+            return metrics.systemMessageSpacing
+        }
+
+        return previousInRun ? metrics.messageRunSpacing : metrics.messageGroupSpacing
     }
 
     func groupPosition(previousInRun: Bool, nextInRun: Bool) -> MessageGroupPosition {

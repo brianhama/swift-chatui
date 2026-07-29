@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Semantic colors used throughout the chat UI.
-public struct ChatColors {
+public struct ChatColors: Sendable {
     /// The primary transcript background color.
     public var transcriptBackground: Color
 

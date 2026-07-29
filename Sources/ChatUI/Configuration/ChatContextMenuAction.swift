@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A host-supplied context menu action for a message row.
-public struct ChatContextMenuAction: Identifiable {
+public struct ChatContextMenuAction: Identifiable, Sendable {
     /// The stable action identifier.
     public let id: String
 
@@ -15,7 +15,7 @@ public struct ChatContextMenuAction: Identifiable {
     public var role: ButtonRole?
 
     /// The action handler.
-    public var action: () -> Void
+    public var action: @MainActor @Sendable () -> Void
 
     /// Creates a context menu action.
     public init(
@@ -23,7 +23,7 @@ public struct ChatContextMenuAction: Identifiable {
         title: String,
         systemImage: String? = nil,
         role: ButtonRole? = nil,
-        action: @escaping () -> Void
+        action: @escaping @MainActor @Sendable () -> Void
     ) {
         self.id = id
         self.title = title

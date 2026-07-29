@@ -15,18 +15,48 @@ public struct MessageBubbleView: View {
     /// The maximum width available to the bubble.
     public var maxWidth: CGFloat
 
+    /// Whether the bubble should occupy the full available width.
+    public var fillsMaxWidth: Bool
+
+    /// Overrides whether the speech-bubble tail is drawn.
+    public var showsTailOverride: Bool?
+
+    /// Overrides the alignment of content inside the bubble.
+    public var contentAlignmentOverride: Alignment?
+
+    /// Overrides multiline text alignment inside the bubble.
+    public var textAlignmentOverride: TextAlignment?
+
+    /// Whether custom fallback content should render as plain text.
+    public var rendersCustomContentAsText: Bool
+
     /// Creates a message bubble view.
-    public init(message: ChatMessage, context: MessageRowContext, maxWidth: CGFloat) {
+    public init(
+        message: ChatMessage,
+        context: MessageRowContext,
+        maxWidth: CGFloat,
+        fillsMaxWidth: Bool = false,
+        showsTail: Bool? = nil,
+        contentAlignment: Alignment? = nil,
+        textAlignment: TextAlignment? = nil,
+        rendersCustomContentAsText: Bool = false
+    ) {
         self.message = message
         self.context = context
         self.maxWidth = maxWidth
+        self.fillsMaxWidth = fillsMaxWidth
+        self.showsTailOverride = showsTail
+        self.contentAlignmentOverride = contentAlignment
+        self.textAlignmentOverride = textAlignment
+        self.rendersCustomContentAsText = rendersCustomContentAsText
     }
 
     public var body: some View {
         TailAlignedBubbleLayout(
             maxWidth: maxWidth,
             direction: context.direction,
-            tailInset: showsTail ? MessageBubbleShape.tailInset : 0
+            tailInset: showsTail ? MessageBubbleShape.tailInset : 0,
+            fillsMaxWidth: fillsMaxWidth
         ) {
             bubbleContent
                 .font(theme.typography.bubble)
@@ -34,12 +64,14 @@ public struct MessageBubbleView: View {
                 .multilineTextAlignment(textAlignment)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(bubbleContentInsets)
+                .frame(maxWidth: fillsMaxWidth ? .infinity : nil, alignment: contentAlignment)
                 .background(
                     MessageBubbleShape(
                         direction: context.direction,
                         groupPosition: context.groupPosition,
                         cornerRadius: theme.metrics.bubbleCornerRadius,
-                        groupedInnerCornerRadius: theme.metrics.groupedInnerCornerRadius
+                        groupedInnerCornerRadius: theme.metrics.groupedInnerCornerRadius,
+                        showsTail: showsTail
                     )
                     .fill(bubbleFill)
                 )
@@ -49,7 +81,7 @@ public struct MessageBubbleView: View {
                     }
                 }
         }
-        .frame(maxWidth: maxWidth, alignment: bubbleAlignment)
+        .frame(maxWidth: fillsMaxWidth ? .infinity : maxWidth, alignment: bubbleAlignment)
         .accessibilityElement(children: .combine)
     }
 
@@ -58,7 +90,10 @@ public struct MessageBubbleView: View {
             if let content = customContentRenderer.render(message: message, context: context) {
                 content
             } else {
-                DefaultMessageContentView(message: message)
+                DefaultMessageContentView(
+                    message: message,
+                    rendersCustomContentAsText: rendersCustomContentAsText
+                )
             }
         }
     }
@@ -92,11 +127,15 @@ public struct MessageBubbleView: View {
     }
 
     private var textAlignment: TextAlignment {
-        context.direction == .outgoing ? .trailing : .leading
+        textAlignmentOverride ?? (context.direction == .outgoing ? .trailing : .leading)
     }
 
     private var showsTail: Bool {
-        context.groupPosition == .single || context.groupPosition == .last
+        showsTailOverride ?? (context.groupPosition == .single || context.groupPosition == .last)
+    }
+
+    private var contentAlignment: Alignment {
+        contentAlignmentOverride ?? bubbleAlignment
     }
 
     private var bubbleContentInsets: EdgeInsets {
@@ -127,6 +166,7 @@ private struct TailAlignedBubbleLayout: Layout {
     let maxWidth: CGFloat
     let direction: MessageDirection
     let tailInset: CGFloat
+    let fillsMaxWidth: Bool
 
     func sizeThatFits(
         proposal: ProposedViewSize,
@@ -143,7 +183,7 @@ private struct TailAlignedBubbleLayout: Layout {
         )
 
         return CGSize(
-            width: max(0, fittedSize.width - tailInset),
+            width: fillsMaxWidth ? availableBodyWidth : max(0, fittedSize.width - tailInset),
             height: fittedSize.height
         )
     }
@@ -173,6 +213,7 @@ private struct TailAlignedBubbleLayout: Layout {
 
 private struct DefaultMessageContentView: View {
     let message: ChatMessage
+    let rendersCustomContentAsText: Bool
 
     var body: some View {
         switch message.content {
@@ -186,7 +227,13 @@ private struct DefaultMessageContentView: View {
         case .audio:
             UnsupportedContentView(symbol: "waveform", title: "Audio")
         case let .custom(type, summary):
-            UnsupportedContentView(symbol: "shippingbox", title: summary ?? type.capitalized)
+            if rendersCustomContentAsText {
+                Text(summary ?? type.capitalized)
+                    .italic()
+                    .textSelection(.enabled)
+            } else {
+                UnsupportedContentView(symbol: "shippingbox", title: summary ?? type.capitalized)
+            }
         }
     }
 }

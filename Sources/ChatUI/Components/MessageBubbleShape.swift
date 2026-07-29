@@ -16,17 +16,22 @@ public struct MessageBubbleShape: Shape {
     /// The inner grouped corner radius.
     public var groupedInnerCornerRadius: CGFloat
 
+    /// Overrides whether the speech-bubble tail is drawn.
+    public var showsTailOverride: Bool?
+
     /// Creates a bubble shape.
     public init(
         direction: MessageDirection,
         groupPosition: MessageGroupPosition,
         cornerRadius: CGFloat = ChatMetrics.messages.bubbleCornerRadius,
-        groupedInnerCornerRadius: CGFloat = ChatMetrics.messages.groupedInnerCornerRadius
+        groupedInnerCornerRadius: CGFloat = ChatMetrics.messages.groupedInnerCornerRadius,
+        showsTail: Bool? = nil
     ) {
         self.direction = direction
         self.groupPosition = groupPosition
         self.cornerRadius = cornerRadius
         self.groupedInnerCornerRadius = groupedInnerCornerRadius
+        self.showsTailOverride = showsTail
     }
 
     public func path(in rect: CGRect) -> Path {
@@ -47,10 +52,19 @@ public struct MessageBubbleShape: Shape {
     }
 
     private var showsTail: Bool {
-        groupPosition == .single || groupPosition == .last
+        showsTailOverride ?? (groupPosition == .single || groupPosition == .last)
     }
 
     private var cornerRadii: RectangleCornerRadii {
+        if showsTailOverride == false && groupPosition == .single {
+            return RectangleCornerRadii(
+                topLeading: cornerRadius,
+                bottomLeading: cornerRadius,
+                bottomTrailing: cornerRadius,
+                topTrailing: cornerRadius
+            )
+        }
+
         switch (direction, groupPosition) {
         case (.incoming, .single):
             return RectangleCornerRadii(

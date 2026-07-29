@@ -1,7 +1,7 @@
 import CoreGraphics
 
 /// Sizing, spacing, and geometry constants used by the chat UI.
-public struct ChatMetrics {
+public struct ChatMetrics: Sendable {
     /// Minimum height for a conversation row.
     public var conversationRowMinHeight: CGFloat
 
@@ -19,6 +19,9 @@ public struct ChatMetrics {
 
     /// Vertical spacing between message runs.
     public var messageGroupSpacing: CGFloat
+
+    /// Vertical spacing between consecutive system messages.
+    public var systemMessageSpacing: CGFloat
 
     /// Top spacing above date separators.
     public var dateSeparatorTopSpacing: CGFloat
@@ -58,6 +61,7 @@ public struct ChatMetrics {
         transcriptHorizontalPadding: CGFloat,
         messageRunSpacing: CGFloat,
         messageGroupSpacing: CGFloat,
+        systemMessageSpacing: CGFloat? = nil,
         dateSeparatorTopSpacing: CGFloat,
         dateSeparatorBottomSpacing: CGFloat,
         transcriptAvatarSize: CGFloat,
@@ -75,6 +79,7 @@ public struct ChatMetrics {
         self.transcriptHorizontalPadding = transcriptHorizontalPadding
         self.messageRunSpacing = messageRunSpacing
         self.messageGroupSpacing = messageGroupSpacing
+        self.systemMessageSpacing = systemMessageSpacing ?? messageGroupSpacing
         self.dateSeparatorTopSpacing = dateSeparatorTopSpacing
         self.dateSeparatorBottomSpacing = dateSeparatorBottomSpacing
         self.transcriptAvatarSize = transcriptAvatarSize
@@ -95,6 +100,7 @@ public struct ChatMetrics {
         transcriptHorizontalPadding: 12,
         messageRunSpacing: 2,
         messageGroupSpacing: 8,
+        systemMessageSpacing: 8,
         dateSeparatorTopSpacing: 18,
         dateSeparatorBottomSpacing: 10,
         transcriptAvatarSize: 28,

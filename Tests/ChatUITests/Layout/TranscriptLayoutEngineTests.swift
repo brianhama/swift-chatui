@@ -105,6 +105,43 @@ final class TranscriptLayoutEngineTests: XCTestCase {
         XCTAssertEqual(topSpacings, [0, 1, 4])
     }
 
+    func testUsesSystemMessageSpacingBetweenConsecutiveSystemMessages() {
+        var engine = TranscriptLayoutEngine()
+        engine.calendar = FixtureFactory.calendar
+        let conversation = FixtureFactory.groupConversation()
+        let messages = [
+            FixtureFactory.message(
+                id: "1",
+                senderID: "system",
+                timestamp: FixtureFactory.date(2026, 4, 10, 10, 0),
+                text: "Ranked challenge created."
+            ),
+            FixtureFactory.message(
+                id: "2",
+                senderID: "system",
+                timestamp: FixtureFactory.date(2026, 4, 10, 10, 1),
+                text: "Challenge accepted."
+            )
+        ]
+        var metrics = ChatMetrics.messages
+        metrics.messageRunSpacing = 1
+        metrics.messageGroupSpacing = 4
+        metrics.systemMessageSpacing = 10
+
+        let items = engine.makeItems(
+            conversation: conversation,
+            messages: messages,
+            configuration: .messages,
+            metrics: metrics
+        )
+        let topSpacings = items.compactMap { item -> CGFloat? in
+            guard case let .message(messageItem) = item else { return nil }
+            return messageItem.topSpacing
+        }
+
+        XCTAssertEqual(topSpacings, [0, 10])
+    }
+
     func testDeduplicatesMessagesByRawIDKeepingLatestOccurrence() {
         var engine = TranscriptLayoutEngine()
         engine.calendar = FixtureFactory.calendar

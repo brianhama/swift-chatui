@@ -1,6 +1,6 @@
 # ChatUI
 
-`ChatUI` is a reusable Swift Package for building Messages-inspired chat interfaces on iOS with SwiftUI. It provides a conversation list, pinned strip, transcript, composer, grouping logic, status rendering, typing indicators, reactions, theme defaults, and environment-driven customization hooks.
+`ChatUI` is a reusable Swift Package for building Messages-inspired chat interfaces on iOS 18+ with SwiftUI. It provides a conversation list, pinned strip, transcript, composer, grouping logic, status rendering, typing indicators, reactions, theme defaults, and environment-driven customization hooks.
 
 ## Features
 

@@ -44,12 +44,21 @@ public struct MessageRowView: View {
 
     public var body: some View {
         rowBody(availableWidth: availableWidth)
-            .frame(maxWidth: .infinity, alignment: context.direction == .outgoing ? .trailing : .leading)
+            .frame(maxWidth: .infinity, alignment: rowAlignment)
     }
 
+    @ViewBuilder
     private func rowBody(availableWidth: CGFloat) -> some View {
+        if isSystemMessage {
+            systemRowBody(availableWidth: availableWidth)
+        } else {
+            participantRowBody(availableWidth: availableWidth)
+        }
+    }
+
+    private func participantRowBody(availableWidth: CGFloat) -> some View {
         let bubbleWidthRatio = availableWidth > 700 ? theme.metrics.bubbleMaxWidthRegular : theme.metrics.bubbleMaxWidthCompact
-        let avatarSpace = context.isGroupConversation && context.direction == .incoming ? theme.metrics.transcriptAvatarSize + 8 : 0
+        let avatarSpace = reservesIncomingAvatarSpace ? theme.metrics.transcriptAvatarSize + 8 : 0
         let bubbleMaxWidth = max(160, (availableWidth - avatarSpace - theme.metrics.transcriptHorizontalPadding * 2) * bubbleWidthRatio)
 
         return VStack(alignment: context.direction == .outgoing ? .trailing : .leading, spacing: 3) {
@@ -66,7 +75,7 @@ public struct MessageRowView: View {
                     Spacer(minLength: 0)
                 }
 
-                if context.direction == .incoming {
+                if reservesIncomingAvatarSpace {
                     avatarSlot
                 }
 
@@ -78,6 +87,37 @@ public struct MessageRowView: View {
             }
             .frame(maxWidth: .infinity, alignment: context.direction == .outgoing ? .trailing : .leading)
         }
+        .contextMenu { contextMenuContent }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(accessibilityLabel))
+    }
+
+    private func systemRowBody(availableWidth: CGFloat) -> some View {
+        VStack(alignment: .center, spacing: 3) {
+            MessageBubbleView(
+                message: message,
+                context: systemBubbleContext,
+                maxWidth: availableWidth,
+                fillsMaxWidth: true,
+                showsTail: false,
+                contentAlignment: .center,
+                textAlignment: .center,
+                rendersCustomContentAsText: true
+            )
+
+            if context.showsStatus {
+                Text(theme.formatters.messageStatus(message.status))
+                    .font(theme.typography.status)
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
+            }
+
+            if let accessory = accessoryRenderer.render(message: message, context: systemBubbleContext) {
+                accessory
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .center)
         .contextMenu { contextMenuContent }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text(accessibilityLabel))
@@ -104,7 +144,7 @@ public struct MessageRowView: View {
 
     @ViewBuilder
     private var avatarSlot: some View {
-        if context.isGroupConversation {
+        if reservesIncomingAvatarSpace {
             if context.showsAvatar, let sender {
                 avatarRenderer.render(participant: sender, size: theme.metrics.transcriptAvatarSize)
             } else {
@@ -112,6 +152,33 @@ public struct MessageRowView: View {
                     .frame(width: theme.metrics.transcriptAvatarSize, height: theme.metrics.transcriptAvatarSize)
             }
         }
+    }
+
+    private var reservesIncomingAvatarSpace: Bool {
+        context.isGroupConversation && context.direction == .incoming && sender != nil
+    }
+
+    private var isSystemMessage: Bool {
+        context.direction == .incoming && sender == nil
+    }
+
+    private var rowAlignment: Alignment {
+        if isSystemMessage {
+            return .center
+        }
+
+        return context.direction == .outgoing ? .trailing : .leading
+    }
+
+    private var systemBubbleContext: MessageRowContext {
+        MessageRowContext(
+            direction: .incoming,
+            groupPosition: .single,
+            showsAvatar: false,
+            showsSenderName: false,
+            showsStatus: context.showsStatus,
+            isGroupConversation: context.isGroupConversation
+        )
     }
 
     @ViewBuilder
@@ -174,7 +241,7 @@ public struct MessageRowView: View {
     }
 
     private var accessibilityLabel: String {
-        let senderName = sender?.accessibilityName ?? sender?.displayName ?? "Unknown sender"
+        let senderName = sender?.accessibilityName ?? sender?.displayName ?? "System"
         let timestamp = message.timestamp.formatted(.dateTime.hour().minute())
         let contentSummary: String
         switch message.content {

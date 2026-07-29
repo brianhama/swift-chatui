@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// A scrollable transcript view that renders separators, grouped message rows, typing state, and jump-to-latest affordances.
 public struct ChatTranscriptView: View {
@@ -17,6 +16,9 @@ public struct ChatTranscriptView: View {
 
     /// Thread configuration.
     public var configuration: ChatThreadConfiguration
+
+    /// Increment this value to request an animated scroll to the latest message.
+    public var scrollToBottomRequest: Int
 
     /// Optional retry action for failed messages.
     public var onRetryMessage: ((ChatMessage) -> Void)?
@@ -42,6 +44,7 @@ public struct ChatTranscriptView: View {
         messages: [ChatMessage],
         typingParticipants: [TypingParticipant] = [],
         configuration: ChatThreadConfiguration = .messages,
+        scrollToBottomRequest: Int = 0,
         onRetryMessage: ((ChatMessage) -> Void)? = nil,
         onLoadEarlierMessages: (() async -> Void)? = nil
     ) {
@@ -49,6 +52,7 @@ public struct ChatTranscriptView: View {
         self.messages = messages
         self.typingParticipants = typingParticipants
         self.configuration = configuration
+        self.scrollToBottomRequest = scrollToBottomRequest
         self.onRetryMessage = onRetryMessage
         self.onLoadEarlierMessages = onLoadEarlierMessages
     }
@@ -97,12 +101,15 @@ public struct ChatTranscriptView: View {
                 .frame(maxWidth: .infinity, minHeight: minContentHeight, alignment: .bottom)
                 .padding(.horizontal, theme.metrics.transcriptHorizontalPadding)
                 .padding(.vertical, transcriptVerticalPadding)
-                .background(
-                    ScrollViewMetricsProbe { metrics in
-                        updateScrollMetrics(metrics)
-                    }
-                    .allowsHitTesting(false)
+            }
+            .onScrollGeometryChange(for: ScrollViewMetrics.self) { geometry in
+                ScrollViewMetrics(
+                    viewportHeight: geometry.visibleRect.height,
+                    contentHeight: geometry.contentSize.height,
+                    bottomDistance: max(0, geometry.contentSize.height - geometry.visibleRect.maxY)
                 )
+            } action: { _, metrics in
+                updateScrollMetrics(metrics)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(theme.colors.transcriptBackground)
@@ -127,12 +134,13 @@ public struct ChatTranscriptView: View {
                 guard hasPerformedInitialScroll == false else { return }
                 hasPerformedInitialScroll = true
                 previousMessageIDs = messages.map(\.id)
-                DispatchQueue.main.async {
-                    proxy.scrollTo(bottomAnchorID, anchor: .bottom)
-                }
+                scrollToBottom(proxy: proxy, animated: false)
             }
             .onChange(of: messages.map(\.id)) { _, newIDs in
                 handleMessageChange(newIDs: newIDs, proxy: proxy)
+            }
+            .onChange(of: scrollToBottomRequest) { _, _ in
+                scrollToBottom(proxy: proxy, animated: true)
             }
         }
     }
@@ -173,7 +181,8 @@ public struct ChatTranscriptView: View {
                 groupingThreshold: configuration.groupingThreshold,
                 showsDirectChatAvatars: configuration.showsDirectChatAvatars,
                 messageRunSpacing: theme.metrics.messageRunSpacing,
-                messageGroupSpacing: theme.metrics.messageGroupSpacing
+                messageGroupSpacing: theme.metrics.messageGroupSpacing,
+                systemMessageSpacing: theme.metrics.systemMessageSpacing
             )
         ) {
             engine.makeItems(
@@ -230,10 +239,18 @@ public struct ChatTranscriptView: View {
         }
 
         if latestMessage.senderID == conversation.currentUserID || isNearBottom {
-            DispatchQueue.main.async {
+            scrollToBottom(proxy: proxy, animated: true)
+        }
+    }
+
+    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
+        DispatchQueue.main.async {
+            if animated {
                 withAnimation(theme.animations.standard) {
                     proxy.scrollTo(bottomAnchorID, anchor: .bottom)
                 }
+            } else {
+                proxy.scrollTo(bottomAnchorID, anchor: .bottom)
             }
         }
     }
@@ -266,6 +283,7 @@ private final class DisplayItemsCache {
         let showsDirectChatAvatars: Bool
         let messageRunSpacing: CGFloat
         let messageGroupSpacing: CGFloat
+        let systemMessageSpacing: CGFloat
     }
 
     private var key: Key?
@@ -287,130 +305,6 @@ private struct ScrollViewMetrics: Equatable {
     var viewportHeight: CGFloat
     var contentHeight: CGFloat
     var bottomDistance: CGFloat
-
-    func isMeaningfullyDifferent(from other: ScrollViewMetrics) -> Bool {
-        abs(viewportHeight - other.viewportHeight) > 0.5
-            || abs(contentHeight - other.contentHeight) > 0.5
-            || abs(bottomDistance - other.bottomDistance) > 0.5
-    }
-}
-
-private struct ScrollViewMetricsProbe: UIViewRepresentable {
-    var onChange: (ScrollViewMetrics) -> Void
-
-    func makeUIView(context: Context) -> ScrollViewMetricsView {
-        let view = ScrollViewMetricsView()
-        view.onChange = onChange
-        return view
-    }
-
-    func updateUIView(_ uiView: ScrollViewMetricsView, context: Context) {
-        uiView.onChange = onChange
-        DispatchQueue.main.async { [weak uiView] in
-            uiView?.attachToNearestScrollView()
-        }
-    }
-}
-
-private final class ScrollViewMetricsView: UIView {
-    var onChange: (ScrollViewMetrics) -> Void = { _ in }
-
-    private weak var scrollView: UIScrollView?
-    private var observations: [NSKeyValueObservation] = []
-    private var lastReportedMetrics: ScrollViewMetrics?
-
-    override func didMoveToSuperview() {
-        super.didMoveToSuperview()
-        DispatchQueue.main.async { [weak self] in
-            self?.attachToNearestScrollView()
-        }
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        DispatchQueue.main.async { [weak self] in
-            self?.attachToNearestScrollView()
-        }
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        attachToNearestScrollView()
-        reportScrollMetrics()
-    }
-
-    func attachToNearestScrollView() {
-        guard let scrollView = nearestScrollView() else {
-            return
-        }
-
-        guard self.scrollView !== scrollView else {
-            reportScrollMetrics()
-            return
-        }
-
-        self.scrollView = scrollView
-        observations = [
-            scrollView.observe(\.contentOffset, options: [.initial, .new]) { [weak self] _, _ in
-                self?.reportScrollMetrics()
-            },
-            scrollView.observe(\.contentSize, options: [.initial, .new]) { [weak self] _, _ in
-                self?.reportScrollMetrics()
-            },
-            scrollView.observe(\.bounds, options: [.initial, .new]) { [weak self] _, _ in
-                self?.reportScrollMetrics()
-            },
-            scrollView.observe(\.contentInset, options: [.initial, .new]) { [weak self] _, _ in
-                self?.reportScrollMetrics()
-            }
-        ]
-
-        reportScrollMetrics()
-    }
-
-    private func nearestScrollView() -> UIScrollView? {
-        var view = superview
-
-        while let currentView = view {
-            if let scrollView = currentView as? UIScrollView {
-                return scrollView
-            }
-
-            view = currentView.superview
-        }
-
-        return nil
-    }
-
-    private func reportScrollMetrics() {
-        guard let scrollView else {
-            return
-        }
-
-        let viewportHeight = max(
-            0,
-            scrollView.bounds.height
-                - scrollView.adjustedContentInset.top
-                - scrollView.adjustedContentInset.bottom
-        )
-        let visibleBottom = scrollView.contentOffset.y
-            + scrollView.bounds.height
-            - scrollView.adjustedContentInset.bottom
-        let metrics = ScrollViewMetrics(
-            viewportHeight: viewportHeight,
-            contentHeight: scrollView.contentSize.height,
-            bottomDistance: max(0, scrollView.contentSize.height - visibleBottom)
-        )
-
-        guard lastReportedMetrics.map({ metrics.isMeaningfullyDifferent(from: $0) }) ?? true else {
-            return
-        }
-
-        lastReportedMetrics = metrics
-        DispatchQueue.main.async { [weak self] in
-            self?.onChange(metrics)
-        }
-    }
 }
 
 #Preview("Transcript") {

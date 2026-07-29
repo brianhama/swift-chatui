@@ -4,7 +4,7 @@ import Foundation
 enum FixtureFactory {
     static let timeZone = TimeZone(secondsFromGMT: 0)!
 
-    static var calendar: Calendar = {
+    static let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         calendar.locale = Locale(identifier: "en_US_POSIX")

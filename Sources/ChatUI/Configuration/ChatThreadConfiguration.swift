@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 /// Configuration values for the chat thread experience.
-public struct ChatThreadConfiguration {
+public struct ChatThreadConfiguration: Sendable {
     /// The grouping threshold in seconds.
     public var groupingThreshold: TimeInterval
 
@@ -22,7 +22,7 @@ public struct ChatThreadConfiguration {
     public var composer: MessageComposerConfiguration
 
     /// Additional context menu actions supplied by the host.
-    public var messageContextMenuActions: (ChatMessage, MessageRowContext) -> [ChatContextMenuAction]
+    public var messageContextMenuActions: @MainActor @Sendable (ChatMessage, MessageRowContext) -> [ChatContextMenuAction]
 
     /// Creates thread configuration.
     public init(
@@ -32,7 +32,7 @@ public struct ChatThreadConfiguration {
         showsJumpToLatest: Bool = true,
         jumpToLatestThreshold: CGFloat = ChatMetrics.messages.jumpToLatestThreshold,
         composer: MessageComposerConfiguration = .messages,
-        messageContextMenuActions: @escaping (ChatMessage, MessageRowContext) -> [ChatContextMenuAction] = { _, _ in [] }
+        messageContextMenuActions: @escaping @MainActor @Sendable (ChatMessage, MessageRowContext) -> [ChatContextMenuAction] = { _, _ in [] }
     ) {
         self.groupingThreshold = groupingThreshold
         self.dateSeparatorStrategy = dateSeparatorStrategy

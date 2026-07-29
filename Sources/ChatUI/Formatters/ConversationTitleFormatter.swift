@@ -1,6 +1,6 @@
 import Foundation
 
-struct ConversationTitleFormatter {
+struct ConversationTitleFormatter: Sendable {
     func title(for conversation: ChatConversation) -> String {
         if let explicitTitle = conversation.explicitTitle, explicitTitle.isEmpty == false {
             return explicitTitle

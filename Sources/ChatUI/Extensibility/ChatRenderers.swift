@@ -1,128 +1,136 @@
 import SwiftUI
 
 /// Type-erased avatar renderer used by the environment.
-public struct ChatAvatarRenderer {
-    private let renderClosure: (ChatParticipant, CGFloat) -> AnyView
+public struct ChatAvatarRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable (ChatParticipant, CGFloat) -> AnyView
 
     /// Creates an avatar renderer.
-    public init<Content: View>(@ViewBuilder render: @escaping (ChatParticipant, CGFloat) -> Content) {
+    public init<Content: View>(@ViewBuilder render: @escaping @MainActor @Sendable (ChatParticipant, CGFloat) -> Content) {
         self.renderClosure = { participant, size in
             AnyView(render(participant, size))
         }
     }
 
+    @MainActor
     func render(participant: ChatParticipant, size: CGFloat) -> AnyView {
         renderClosure(participant, size)
     }
 }
 
 /// Type-erased group avatar renderer used by the environment.
-public struct ChatGroupAvatarRenderer {
-    private let renderClosure: ([ChatParticipant], CGFloat) -> AnyView
+public struct ChatGroupAvatarRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable ([ChatParticipant], CGFloat) -> AnyView
 
     /// Creates a group avatar renderer.
-    public init<Content: View>(@ViewBuilder render: @escaping ([ChatParticipant], CGFloat) -> Content) {
+    public init<Content: View>(@ViewBuilder render: @escaping @MainActor @Sendable ([ChatParticipant], CGFloat) -> Content) {
         self.renderClosure = { participants, size in
             AnyView(render(participants, size))
         }
     }
 
+    @MainActor
     func render(participants: [ChatParticipant], size: CGFloat) -> AnyView {
         renderClosure(participants, size)
     }
 }
 
 /// Type-erased message content renderer used by the environment.
-public struct MessageContentRenderer {
-    private let renderClosure: (ChatMessage, MessageRowContext) -> AnyView?
+public struct MessageContentRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable (ChatMessage, MessageRowContext) -> AnyView?
 
     /// Creates a message content renderer.
-    public init<Content: View>(render: @escaping (ChatMessage, MessageRowContext) -> Content?) {
+    public init<Content: View>(render: @escaping @MainActor @Sendable (ChatMessage, MessageRowContext) -> Content?) {
         self.renderClosure = { message, context in
             render(message, context).map { AnyView($0) }
         }
     }
 
+    @MainActor
     func render(message: ChatMessage, context: MessageRowContext) -> AnyView? {
         renderClosure(message, context)
     }
 }
 
 /// Type-erased message overlay renderer used by the environment.
-public struct MessageOverlayRenderer {
-    private let renderClosure: (ChatMessage, MessageRowContext) -> AnyView?
+public struct MessageOverlayRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable (ChatMessage, MessageRowContext) -> AnyView?
 
     /// Creates a message overlay renderer.
-    public init<Content: View>(render: @escaping (ChatMessage, MessageRowContext) -> Content?) {
+    public init<Content: View>(render: @escaping @MainActor @Sendable (ChatMessage, MessageRowContext) -> Content?) {
         self.renderClosure = { message, context in
             render(message, context).map { AnyView($0) }
         }
     }
 
+    @MainActor
     func render(message: ChatMessage, context: MessageRowContext) -> AnyView? {
         renderClosure(message, context)
     }
 }
 
 /// Type-erased message accessory renderer used by the environment.
-public struct MessageAccessoryRenderer {
-    private let renderClosure: (ChatMessage, MessageRowContext) -> AnyView?
+public struct MessageAccessoryRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable (ChatMessage, MessageRowContext) -> AnyView?
 
     /// Creates a message accessory renderer.
-    public init<Content: View>(render: @escaping (ChatMessage, MessageRowContext) -> Content?) {
+    public init<Content: View>(render: @escaping @MainActor @Sendable (ChatMessage, MessageRowContext) -> Content?) {
         self.renderClosure = { message, context in
             render(message, context).map { AnyView($0) }
         }
     }
 
+    @MainActor
     func render(message: ChatMessage, context: MessageRowContext) -> AnyView? {
         renderClosure(message, context)
     }
 }
 
 /// Type-erased conversation row accessory renderer used by the environment.
-public struct ConversationRowAccessoryRenderer {
-    private let renderClosure: (ConversationPreview) -> AnyView?
+public struct ConversationRowAccessoryRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable (ConversationPreview) -> AnyView?
 
     /// Creates a conversation row accessory renderer.
-    public init<Content: View>(render: @escaping (ConversationPreview) -> Content?) {
+    public init<Content: View>(render: @escaping @MainActor @Sendable (ConversationPreview) -> Content?) {
         self.renderClosure = { preview in
             render(preview).map { AnyView($0) }
         }
     }
 
+    @MainActor
     func render(preview: ConversationPreview) -> AnyView? {
         renderClosure(preview)
     }
 }
 
 /// Type-erased header renderer used by the environment.
-public struct ChatHeaderRenderer {
-    private let renderClosure: (ChatConversation) -> AnyView?
+public struct ChatHeaderRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable (ChatConversation) -> AnyView?
 
     /// Creates a header renderer.
-    public init<Content: View>(render: @escaping (ChatConversation) -> Content?) {
+    public init<Content: View>(render: @escaping @MainActor @Sendable (ChatConversation) -> Content?) {
         self.renderClosure = { conversation in
             render(conversation).map { AnyView($0) }
         }
     }
 
+    @MainActor
     func render(conversation: ChatConversation) -> AnyView? {
         renderClosure(conversation)
     }
 }
 
 /// Type-erased typing indicator renderer used by the environment.
-public struct TypingIndicatorRenderer {
-    private let renderClosure: ([TypingParticipant], [ChatParticipant]) -> AnyView?
+public struct TypingIndicatorRenderer: Sendable {
+    private let renderClosure: @MainActor @Sendable ([TypingParticipant], [ChatParticipant]) -> AnyView?
 
     /// Creates a typing indicator renderer.
-    public init<Content: View>(render: @escaping ([TypingParticipant], [ChatParticipant]) -> Content?) {
+    public init<Content: View>(render: @escaping @MainActor @Sendable ([TypingParticipant], [ChatParticipant]) -> Content?) {
         self.renderClosure = { typers, participants in
             render(typers, participants).map { AnyView($0) }
         }
     }
 
+    @MainActor
     func render(typingParticipants: [TypingParticipant], participants: [ChatParticipant]) -> AnyView? {
         renderClosure(typingParticipants, participants)
     }

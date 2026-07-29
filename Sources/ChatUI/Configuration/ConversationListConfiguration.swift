@@ -1,7 +1,7 @@
 import Foundation
 
 /// Configuration values for the conversation list screen.
-public struct ConversationListConfiguration {
+public struct ConversationListConfiguration: Sendable {
     /// Whether a pinned strip is shown when pinned rows exist.
     public var showsPinnedSection: Bool
 

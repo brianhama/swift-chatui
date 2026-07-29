@@ -1,6 +1,6 @@
 import Foundation
 
-struct RelativeDateLabelFormatter {
+struct RelativeDateLabelFormatter: Sendable {
     var calendar: Calendar
 
     init(calendar: Calendar = .current) {

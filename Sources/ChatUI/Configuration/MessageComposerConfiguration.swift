@@ -1,7 +1,7 @@
 import Foundation
 
 /// Configuration values for the message composer.
-public struct MessageComposerConfiguration {
+public struct MessageComposerConfiguration: Sendable {
     /// The placeholder text shown when the draft is empty.
     public var placeholder: String
 

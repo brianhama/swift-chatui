@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// A full visual theme for the chat package.
-public struct ChatTheme {
+public struct ChatTheme: Sendable {
     /// Timing and curve values used by animated elements.
-    public struct Animations {
+    public struct Animations: Sendable {
         /// Standard spring animation for UI state changes.
         public var standard: Animation
 

@@ -1,33 +1,33 @@
 import Foundation
 
 /// Formatter hooks used by the default UI.
-public struct ChatFormatters {
+public struct ChatFormatters: Sendable {
     /// Formats thread titles.
-    public var conversationTitle: (ChatConversation) -> String
+    public var conversationTitle: @Sendable (ChatConversation) -> String
 
     /// Formats list row titles.
-    public var conversationPreviewTitle: (ConversationPreview) -> String
+    public var conversationPreviewTitle: @Sendable (ConversationPreview) -> String
 
     /// Formats row timestamps.
-    public var conversationTimestamp: (Date, Date) -> String
+    public var conversationTimestamp: @Sendable (Date, Date) -> String
 
     /// Formats date separator labels.
-    public var dateSeparator: (Date, Date) -> String
+    public var dateSeparator: @Sendable (Date, Date) -> String
 
     /// Formats message status text.
-    public var messageStatus: (MessageStatus) -> String
+    public var messageStatus: @Sendable (MessageStatus) -> String
 
     /// Formats typing accessibility labels.
-    public var typingAccessibilityLabel: ([TypingParticipant], [ChatParticipant]) -> String
+    public var typingAccessibilityLabel: @Sendable ([TypingParticipant], [ChatParticipant]) -> String
 
     /// Creates formatter hooks.
     public init(
-        conversationTitle: @escaping (ChatConversation) -> String,
-        conversationPreviewTitle: @escaping (ConversationPreview) -> String,
-        conversationTimestamp: @escaping (Date, Date) -> String,
-        dateSeparator: @escaping (Date, Date) -> String,
-        messageStatus: @escaping (MessageStatus) -> String,
-        typingAccessibilityLabel: @escaping ([TypingParticipant], [ChatParticipant]) -> String
+        conversationTitle: @escaping @Sendable (ChatConversation) -> String,
+        conversationPreviewTitle: @escaping @Sendable (ConversationPreview) -> String,
+        conversationTimestamp: @escaping @Sendable (Date, Date) -> String,
+        dateSeparator: @escaping @Sendable (Date, Date) -> String,
+        messageStatus: @escaping @Sendable (MessageStatus) -> String,
+        typingAccessibilityLabel: @escaping @Sendable ([TypingParticipant], [ChatParticipant]) -> String
     ) {
         self.conversationTitle = conversationTitle
         self.conversationPreviewTitle = conversationPreviewTitle

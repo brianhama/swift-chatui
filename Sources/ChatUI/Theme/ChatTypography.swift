@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Text styles used by the chat UI.
-public struct ChatTypography {
+public struct ChatTypography: Sendable {
     /// The row title font.
     public var conversationTitle: Font
 
